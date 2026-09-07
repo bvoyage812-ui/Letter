@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>To You, Always</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,500&family=Georgia&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy-deep: #050b18;
+    --royal-blue: #0f1c3f;
+    --midnight-blue: #1b2a4a;
+    --obsidian: #030712;
+    --cream: #e2e8f0;
+    --cream-dim: #a0aec0;
+    --gold: #d8b56a;
+    --gold-glow: #e8cd8c;
+    --gold-soft: #d8b56a;
+    --glow: #e8cd8c;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, var(--midnight-blue) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 110%, var(--royal-blue) 0%, transparent 60%),
+      var(--obsidian);
+    color: var(--cream);
+    font-family: Georgia, 'Times New Roman', serif;
+    overflow-x: hidden;
+  }
+
+  /* falling petals canvas */
+  #petal-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-start; /* Kept fixed so alignment doesn't jump */
+  padding: 6vh 20px 160px;
+  padding-left: calc(50vw - 310px); /* Centers the letter by default */
+  min-height: 100vh;
+  
+  /* Smooth animation curve */
+  transition: padding-left 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+  /* Shift layout left on wider screens when a word is clicked */
+ body.split-active .stage {
+  padding-left: max(40px, calc(50vw - 580px));
+}
+  .letter {
+    max-width: 620px;
+    width: 100%;
+    background: linear-gradient(160deg, rgba(8, 11, 20, 0.96), rgba(3, 5, 12, 0.98));
+    border: 1px solid rgba(216, 181, 106, 0.18);
+    border-radius: 4px;
+    padding: 56px 52px 48px;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.6),
+      0 30px 80px -20px rgba(0, 0, 0, 0.95),
+      0 0 60px -10px rgba(15, 28, 63, 0.25);
+    position: relative;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .letter::before {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    border: 1px solid rgba(216,181,106,0.12);
+    pointer-events: none;
+  }
+
+  .letter::after {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    border: 1px dashed rgba(216, 181, 106, 0.2);
+    pointer-events: none;
+  }
+
+  .heading {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.05rem;
+    color: var(--gold-soft);
+    letter-spacing: 0.02em;
+    margin: 0 0 34px;
+  }
+
+  /* Interactive Word Styling */
+  .interactive-word {
+    color: var(--gold-glow);
+    text-decoration: underline;
+    text-decoration-color: rgba(216, 181, 106, 0.4);
+    text-underline-offset: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0 2px;
+  }
+
+  .interactive-word:hover {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(232, 205, 140, 0.8);
+  }
+
+  .interactive-word.active-word {
+    color: #fff;
+    text-shadow: 0 0 12px rgba(232, 205, 140, 0.9);
+    text-decoration-color: var(--gold-glow);
+  }
+
+  /* Side Popout Panel */
+  .side-panel {
+    position: fixed;
+    top: 50%;
+    right: -450px;
+    transform: translateY(-50%);
+    width: min(380px, 85vw);
+    background: linear-gradient(160deg, rgba(8, 11, 20, 0.96), rgba(3, 5, 12, 0.98));
+    border: 1px solid rgba(216, 181, 106, 0.3);
+    border-radius: 4px;
+    padding: 36px 30px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(216, 181, 106, 0.15);
+    opacity: 0;
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 20;
+  }
+
+  .side-panel.active {
+    right: max(20px, 5vw);
+    opacity: 1;
+  }
+
+  .side-panel-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: var(--cream-dim);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .side-panel-close:hover {
+    color: var(--gold-soft);
+  }
+
+  .panel-title {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    color: var(--gold-soft);
+    margin-top: 0;
+    margin-bottom: 14px;
+  }
+
+  .panel-body {
+    font-size: 0.98rem;
+    line-height: 1.85;
+    color: var(--cream);
+  }
+
+  .panel-body p { margin: 0; }
+
+  .letter p {
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: var(--cream);
+    margin: 0 0 22px;
+    text-align: left;
+  }
+
+  .letter p:first-of-type::first-letter {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.4rem;
+    float: left;
+    line-height: 0.8;
+    padding: 6px 10px 0 0;
+    color: var(--gold);
+    text-shadow: 0 0 12px rgba(216, 181, 106, 0.35);
+  }
+
+  .signoff {
+    margin-top: 40px;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.15rem;
+    color: var(--gold-soft);
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 4px 2px;
+    letter-spacing: 0.01em;
+  }
+
+  .signoff .heart {
+    display: inline-block;
+    margin-left: 8px;
+    color: var(--glow);
+    text-shadow: 0 0 6px rgba(232,169,79,0.6);
+    transition: text-shadow 0.4s ease, transform 0.4s ease;
+  }
+
+  .signoff:hover .heart {
+    text-shadow: 0 0 16px rgba(232,169,79,0.95), 0 0 30px rgba(232,169,79,0.5);
+    transform: scale(1.15);
+  }
+
+  .signoff:focus-visible {
+    outline: 1px solid var(--gold);
+    outline-offset: 4px;
+  }
+
+  /* Wax Seal Container & Button */
+  .seal-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 36px;
+    gap: 10px;
+  }
+
+  .wax-seal {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #a82338 0%, #610d1b 70%, #36050e 100%);
+    border: 1px solid rgba(216, 181, 106, 0.4);
+    cursor: pointer;
+    box-shadow: 
+      0 4px 15px rgba(0, 0, 0, 0.7),
+      0 0 12px rgba(216, 181, 106, 0.25),
+      inset 0 2px 4px rgba(255, 255, 255, 0.3),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.8);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+    outline: none;
+    padding: 0;
+  }
+
+  .seal-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin: 7px auto;
+    border-radius: 50%;
+    border: 1px dashed rgba(216, 181, 106, 0.5);
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.6);
+  }
+
+  .seal-initial {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--gold);
+    text-shadow: 
+      0 1px 2px rgba(0, 0, 0, 0.9),
+      0 0 8px rgba(216, 181, 106, 0.6);
+    user-select: none;
+  }
+
+  .wax-seal:hover {
+    transform: scale(1.12) rotate(4deg);
+    box-shadow: 
+      0 6px 22px rgba(0, 0, 0, 0.8),
+      0 0 25px rgba(216, 181, 106, 0.6),
+      inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  }
+
+  .seal-hint {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 0.8rem;
+    color: var(--gold-soft);
+    opacity: 0.6;
+    letter-spacing: 0.03em;
+    transition: opacity 0.3s ease;
+  }
+
+  .seal-container:hover .seal-hint { opacity: 0.9; }
+
+  /* modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4,2,2,0.78);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    width: min(420px, 88vw);
+    background: linear-gradient(160deg, #1a0d0c, #0c0605);
+    border: 1px solid rgba(216,181,106,0.35);
+    border-radius: 6px;
+    padding: 34px 30px 28px;
+    text-align: center;
+    box-shadow: 0 0 50px -5px rgba(232,169,79,0.15), 0 25px 60px rgba(0,0,0,0.7);
+    transform: translateY(14px) scale(0.97);
+    transition: transform 0.35s ease;
+    position: relative;
+  }
+
+  .modal-overlay.open .photo-frame {
+    animation: photoPopGlow 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: var(--cream-dim);
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    transition: color 0.2s ease;
+  }
+
+  .modal-close:hover { color: var(--gold-soft); }
+
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.25rem;
+    color: var(--gold-soft);
+    margin: 4px 0 20px;
+    text-shadow: 0 0 12px rgba(232,169,79,0.25);
+  }
+
+  .photo-frame {
+    width: 100%;
+    aspect-ratio: 4/5;
+    max-height: 260px;
+    border: 1px solid rgba(216,181,106,0.3);
+    border-radius: 3px;
+    overflow: hidden;
+    background: #150a09;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    opacity: 0;
+    box-shadow: none;
+  }
+
+  .photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    object-position: center; 
+    display: block;
+    border: none;
+  }
+
+  .caption {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--cream-dim);
+    margin: 0;
+  }
+
+  /* music player */
+  .music-dock {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .music-dock audio {
+    height: 38px;
+    width: 320px;
+    max-width: 78vw;
+    filter: sepia(0.35) saturate(1.4) hue-rotate(-10deg) brightness(0.9);
+    border-radius: 20px;
+    outline: 1px solid rgba(216,181,106,0.25);
+  }
+
+  .music-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    color: var(--cream-dim);
+    font-style: italic;
+    opacity: 0.6;
+  }
+
+  @media (max-width: 900px) {
+    
+    .side-panel.active {
+      right: 50%;
+      transform: translate(50%, -50%);
+      width: 90vw;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .letter { padding: 40px 26px 36px; }
+    .stage { padding-top: 4vh; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #petal-canvas { display: none; }
+    .floating-bubble { animation: none !important; }
+  }
+
+  @keyframes photoPopGlow {
+    0% {
+      transform: scale(0.9);
+      opacity: 0.3;
+      box-shadow: 0 0 10px rgba(232,169,79, 0.2);
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 1;
+      box-shadow: 0 0 35px 5px rgba(232,169,79, 0.9), 0 0 10px rgba(232,169,79, 0.5);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+      box-shadow: 0 0 20px rgba(232,169,79, 0.6);
+    }
+  }
+
+  .lottie-dock {
+    position: fixed;
+    bottom: 0px;
+    right: 80px;
+    width: 300px;
+    height: 300px;
+    z-index: 30;
+    pointer-events: none;
+  }
+
+  @media (max-width: 600px) {
+    .lottie-dock {
+      width: 70px;
+      height: 70px;
+      bottom: 70px;
+    }
+  }
+
+  .side-panel.pop-out {
+  animation: panelPopOut 0.22s ease forwards;
+}
+.side-panel.pop-in {
+  animation: panelPopIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes panelPopOut {
+  0% { opacity: 1; transform: translateY(-50%) scale(1); }
+  100% { opacity: 0; transform: translateY(-50%) scale(0.85); }
+}
+
+@keyframes panelPopIn {
+  0% { opacity: 0; transform: translateY(-50%) scale(0.85); }
+  60% { opacity: 1; transform: translateY(-50%) scale(1.04); }
+  100% { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+
+  /* ---------- Single floating bubble ---------- */
+.floating-bubble {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 110px;
+  height: 110px;
+  z-index: 6;
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0.2;
+  filter: drop-shadow(0 0 12px rgba(216, 181, 106, 0.25));
+  /* Smoothly glides to each new random position */
+  transition: transform 6s ease-in-out; 
+}
+
+  @media (max-width: 600px) {
+    .floating-bubble { width: 64px; height: 64px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="petal-canvas"></canvas>
+
+<div class="stage">
+  <div class="letter">
+    <p class="heading">
+      For Emma, someone who needs 
+      <span class="interactive-word" data-key="love">love</span> 
+      as much as I do
+    </p>
+
+    <p>
+      <br>I hope that this letter would reach you, and you would take your time to read it as well. I know that you find it difficult to 
+      accept compliments, so i made you this letter to show you that I really appreciate these lovely moments with you, they are truly the best.
+    </p>
+    <p>I know that I may be not the best at communicating whatever I have in mind but I am really straightforward when it comes to telling you
+        how good you look, how much I love you and how much I care about you.
+    </p>
+    <p>Whenever doubt creeps in, hold onto three things: you are never
+      <span class="interactive-word" data-key="enough">not enough</span>,
+      you carry a kind of
+      <span class="interactive-word" data-key="beauty">beauty</span>
+      you might not see in yourself, and you are never
+      <span class="interactive-word" data-key="alone">alone</span>.
+    </p>
+ <p>I wish you could see yourself the way  see you.
+    </p>
+    <button class="secret-trigger-btn signoff" id="secretTrigger" aria-haspopup="dialog">
+      Yours, always<span class="heart">♥</span>
+    </button>
+    
+    <div class="seal-container">
+      <button class="secret-trigger-btn wax-seal" id="sealTrigger" aria-label="Open secret easter egg">
+        <span class="seal-inner">
+          <span class="seal-initial">N</span>
+        </span>
+      </button>
+      <span class="seal-hint">Sealed with love from above, and yours truly</span>
+    </div>
+  </div>
+</div>
+
+<!-- Side Panel: shared by every interactive word -->
+<div class="side-panel" id="sidePanel">
+  <button class="side-panel-close" id="sidePanelClose" aria-label="Close">✕</button>
+  <p class="panel-title" id="panelTitle">A secret thought...</p>
+  <div class="panel-body" id="panelBody">
+    <p>Every little thing about you has a way of making my world brighter. You don't ever have to doubt how much you mean to me.</p>
+  </div>
+</div>
+
+<!-- Modal 1: Triggered by "Yours, always ♥" -->
+<div class="modal-overlay" id="photoModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="photoModalTitle">
+    <button class="modal-close" id="photoModalClose" aria-label="Close">✕</button>
+    <p class="modal-title" id="photoModalTitle">Sharing my happiness with you</p>
+    <div class="photo-frame">
+      <img src="/e1b5fdd5-4a43-40bc-8edd-7e3fb38830ca.jpg" alt="A cherished photo of us" onerror="this.style.display='none'; this.parentElement.innerHTML+='<span style=\'color:#8a7a68; font-family:Georgia,serif; font-style:italic; font-size:0.85rem; padding:0 20px;\'>Your photo will appear here</span>'">
+    </div>
+    <p class="caption">A smile you would forever remember</p>
+  </div>
+</div>
+
+<!-- Modal 2: Triggered by the Wax Seal -->
+<div class="modal-overlay" id="noteModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="noteModalTitle">
+    <button class="modal-close" id="noteModalClose" aria-label="Close">✕</button>
+    <p class="modal-title" id="noteModalTitle">A Secret Note</p>
+    <div style="font-family: Georgia, serif; font-size: 1rem; line-height: 1.7; color: var(--cream); text-align: left; padding: 10px 0;">
+      <p style="margin-bottom: 12px;">You found a my secret! oh nyo!!!</p>
+      <p style="margin-bottom: 0;">I wanted to put an extra message for you. Thank you for doing your best up until now, I really appreciate what you've done this past few months.
+         I know that we will be able to overcome this and be happy together, our efforts won't go to waste, promise? I love you so much, and I will always be here for you no matter what.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: Secret Bubble Modal -->
+<div class="modal-overlay" id="bubbleModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bubbleModalTitle">
+    <button class="modal-close" id="bubbleModalClose" aria-label="Close">✕</button>
+    <p class="modal-title" id="bubbleModalTitle">Jabon? You caught a bubble! 🎈</p>
+    <div style="font-family: Georgia, serif; font-size: 1rem; line-height: 1.7; color: var(--cream); text-align: center; padding: 10px 0;">
+      <p style="margin-bottom: 0;">A little reminder that you should not be too rough on yourself, okay? </p>
+    </div>
+  </div>
+</div>
+
+<div class="music-dock">
+  <audio id="bgAudio" controls>
+    Your browser does not support the audio element.
+  </audio>
+  <span class="music-label" id="musicLabel">Find a secret to play the music hehe</span>
+</div>
+
+<div class="lottie-dock">
+  <dotlottie-player 
+    src="/animations/Le Petit Chat _Cat_ Noir.lottie" 
+    background="transparent" 
+    speed="1" 
+    loop 
+    autoplay>
+  </dotlottie-player>
+</div>
+
+<!-- Single floating bubble, drifting slowly around the page -->
+<div class="floating-bubble">
+  <dotlottie-player
+    src="/animations//Slow Blob Animation.lottie"
+    background="transparent"
+    speed="0.1"
+    loop
+    autoplay>
+  </dotlottie-player>
+</div>
+
+<script>
+// Bubble Modal Elements
+const bubbleOverlay = document.getElementById('bubbleModalOverlay');
+const bubbleClose = document.getElementById('bubbleModalClose');
+
+// Function to handle clicking a bubble
+function attachBubbleClick(bubbleElement) {
+  bubbleElement.addEventListener('click', () => {
+    openModal(bubbleOverlay);
+  });
+}
+const bubble = document.querySelector('.floating-bubble');
+
+function getRandomPosition() {
+  // Keeps the bubble safely within the visible screen area
+  const maxVx = 80; // max horizontal percentage (vw)
+  const minVx = 5;  // min horizontal percentage (vw)
+  const maxVy = 80; // max vertical percentage (vh)
+  const minVy = 5;  // min vertical percentage (vh)
+
+  const randomX = Math.floor(Math.random() * (maxVx - minVx) + minVx);
+  const randomY = Math.floor(Math.random() * (maxVy - minVy) + minVy);
+  const randomScale = (Math.random() * 0.25 + 0.9).toFixed(2); // Scales between 0.9 and 1.15
+
+  return { x: randomX, y: randomY, scale: randomScale };
+}
+
+function floatRandomly() {
+  if (!bubble) return;
+  const { x, y, scale } = getRandomPosition();
+  bubble.style.transform = `translate(${x}vw, ${y}vh) scale(${scale})`;
+}
+
+// Start moving immediately
+floatRandomly();
+
+// Pick a new random target every 6 seconds (matches CSS transition speed)
+setInterval(floatRandomly, 6000);
+
+// Close button logic
+bubbleClose.addEventListener('click', () => closeModal(bubbleOverlay));
+
+// Close on backdrop click
+bubbleOverlay.addEventListener('click', (e) => {
+  if (e.target === bubbleOverlay) closeModal(bubbleOverlay);
+});
+
+// Attach click listener to existing bubble or dynamically created bubbles
+document.querySelectorAll('.floating-bubble').forEach(attachBubbleClick);
+
+// ---------- Dual Modal Logic ----------
+const heartTrigger = document.getElementById('secretTrigger');
+const sealTrigger = document.getElementById('sealTrigger');
+
+const photoOverlay = document.getElementById('photoModalOverlay');
+const photoClose = document.getElementById('photoModalClose');
+
+const noteOverlay = document.getElementById('noteModalOverlay');
+const noteClose = document.getElementById('noteModalClose');
+
+function openModal(modal) {
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(modal) {
+  modal.classList.remove('open');
+  if (!document.getElementById('sidePanel').classList.contains('active')) {
+    document.body.style.overflow = '';
+  }
+}
+
+// Heart Button -> Photo Modal
+heartTrigger.addEventListener('click', () => openModal(photoOverlay));
+photoClose.addEventListener('click', () => closeModal(photoOverlay));
+
+// Wax Seal -> Secret Note Modal
+sealTrigger.addEventListener('click', () => openModal(noteOverlay));
+noteClose.addEventListener('click', () => closeModal(noteOverlay));
+
+// Close on backdrop click
+[photoOverlay, noteOverlay].forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal(overlay);
+  });
+});
+
+// ---------- Shared Side Panel Logic (for every interactive word) ----------
+const wordMessages = {
+  love: {
+    title: "A secret thought...",
+    body: "Every little thing about you has a way of making my world brighter. You don't ever have to doubt how much you mean to me."
+  },
+  enough: {
+    title: "Not enough?",
+    body: "If ever you feel like you aren't enough, remember \u2014 that you are loved and appreciated more than you could ever imagine."
+  },
+  beauty: {
+    title: "Your beauty",
+    body: "If ever you feel insecure about how you look, remember \u2014 I already saw beauty in you that you might not see in yourself."
+  },
+  alone: {
+    title: "Never alone",
+    body: "If ever you feel lonely, always remember \u2014  I'm here with you and that you are never truly alone. Just have a little patience."
+  }
+};
+
+const interactiveWords = document.querySelectorAll('.interactive-word');
+const sidePanel = document.getElementById('sidePanel');
+const sidePanelClose = document.getElementById('sidePanelClose');
+const panelTitle = document.getElementById('panelTitle');
+const panelBody = document.getElementById('panelBody');
+
+let activeWordKey = null;
+let isAnimating = false;
+
+function showPanelContent(key, el) {
+  const entry = wordMessages[key];
+  if (!entry) return;
+
+  panelTitle.textContent = entry.title;
+  panelBody.innerHTML = `<p>${entry.body}</p>`;
+
+  document.body.classList.add('split-active');
+  sidePanel.classList.add('active');
+  sidePanel.classList.remove('pop-out');
+  sidePanel.classList.add('pop-in');
+
+  interactiveWords.forEach(w => w.classList.remove('active-word'));
+  el.classList.add('active-word');
+  activeWordKey = key;
+
+  setTimeout(() => {
+    sidePanel.classList.remove('pop-in');
+    isAnimating = false;
+  }, 320);
+}
+
+function openSidePanel(key, el) {
+  showPanelContent(key, el);
+}
+
+function switchSidePanel(key, el) {
+  if (isAnimating) return;
+  isAnimating = true;
+
+  sidePanel.classList.remove('pop-in');
+  sidePanel.classList.add('pop-out');
+
+  setTimeout(() => {
+    showPanelContent(key, el);
+  }, 220);
+}
+
+function closeSidePanel() {
+  document.body.classList.remove('split-active');
+  sidePanel.classList.remove('active', 'pop-in', 'pop-out');
+  interactiveWords.forEach(w => w.classList.remove('active-word'));
+  activeWordKey = null;
+}
+
+interactiveWords.forEach(word => {
+  word.addEventListener('click', () => {
+    const key = word.dataset.key;
+    if (activeWordKey === key) {
+      closeSidePanel();
+    } else if (activeWordKey === null) {
+      openSidePanel(key, word);
+    } else {
+      switchSidePanel(key, word);
+    }
+  });
+});
+
+sidePanelClose.addEventListener('click', closeSidePanel);
+
+// Close on ESC key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeModal(photoOverlay);
+    closeModal(noteOverlay);
+    closeSidePanel();
+  }
+});
+
+// ---------- Falling petals ----------
+const canvas = document.getElementById('petal-canvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+function resize(){
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const petalColors = ['#1b2a4a', '#1b2a4a', '#d8b56a', '#4a6296', '#93a4c1', '#f3e3b3', '#99762a'];
+const PETAL_COUNT = 38;
+let petals = [];
+
+function makePetal(initial){
+  return {
+    x: Math.random() * width,
+    y: initial ? Math.random() * height : -20,
+    size: 8 + Math.random() * 10,
+    speedY: 0.4 + Math.random() * 0.7,
+    speedX: (Math.random() - 0.5) * 0.6,
+    sway: Math.random() * Math.PI * 2,
+    swaySpeed: 0.01 + Math.random() * 0.015,
+    rotation: Math.random() * Math.PI * 2,
+    rotationSpeed: (Math.random() - 0.5) * 0.02,
+    color: petalColors[Math.floor(Math.random() * petalColors.length)],
+    opacity: 0.5 + Math.random() * 0.4
+  };
+}
+
+function initPetals(){
+  petals = [];
+  for (let i = 0; i < PETAL_COUNT; i++){
+    petals.push(makePetal(true));
+  }
+}
+initPetals();
+
+function drawPetal(p){
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rotation);
+  ctx.globalAlpha = p.opacity;
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, p.size * 0.55, p.size, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function step(){
+  ctx.clearRect(0, 0, width, height);
+  for (const p of petals){
+    p.sway += p.swaySpeed;
+    p.y += p.speedY;
+    p.x += p.speedX + Math.sin(p.sway) * 0.5;
+    p.rotation += p.rotationSpeed;
+
+    if (p.y > height + 20){
+      Object.assign(p, makePetal(false));
+    }
+    if (p.x > width + 20) p.x = -20;
+    if (p.x < -20) p.x = width + 20;
+
+    drawPetal(p);
+  }
+  if (!prefersReduced){
+    requestAnimationFrame(step);
+  }
+}
+
+if (!prefersReduced){
+  step();
+}
+
+// ---------- Music Playlist Logic ----------
+const playlist = [
+  {
+    title: "Lonely I Will Never Be",
+    src: "/music/Adventure Time_ Fionna and Cake - Season 2  Lonely I Will Never Be (Lyric Video) - Rebecca Sugar.mp3"
+  },
+  {
+    title: "Everything in You",
+    src: "/music/Adventure Time_ Fionna and Cake Soundtrack  Everything in You - Half Shy  WaterTower.mp3"
+  }
+];
+
+let currentTrackIndex = 0;
+const audioPlayer = document.getElementById('bgAudio');
+const musicLabel = document.getElementById('musicLabel');
+
+function loadTrack(index) {
+  currentTrackIndex = index;
+  audioPlayer.src = playlist[currentTrackIndex].src;
+  musicLabel.textContent = `our song: ${playlist[currentTrackIndex].title}`;
+}
+
+loadTrack(0);
+
+audioPlayer.addEventListener('ended', () => {
+  const nextIndex = (currentTrackIndex + 1) % playlist.length;
+  loadTrack(nextIndex);
+  audioPlayer.play().catch(err => console.log("Playback error:", err));
+});
+
+function startMusic() {
+  if (audioPlayer.paused) {
+    audioPlayer.play().then(() => {
+      document.removeEventListener('click', startMusic);
+      document.removeEventListener('touchstart', startMusic);
+    }).catch(err => console.log("Waiting for user tap."));
+  }
+}
+
+document.addEventListener('click', startMusic, { once: true });
+document.addEventListener('touchstart', startMusic, { once: true });
+</script>
+
+</body>
+</html>
